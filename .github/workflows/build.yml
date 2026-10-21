@@ -1,0 +1,83 @@
+name: Build
+
+# Builds the pinned static lld, opt and llc on a native runner of each of six platforms (see build.sh). Pushing a tag
+# `llvm-<version>-r<revision>` that matches llvm-version publishes the assets and a SHA256SUMS file to a release of the
+# same name; pull requests and manual runs only build, so a recipe change is proven before it is tagged.
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - build.sh
+      - llvm-version
+      - .github/workflows/build.yml
+  push:
+    tags:
+      - 'llvm-*'
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: ${{ matrix.os }}-${{ matrix.arch }}
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 240
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: linux, arch: amd64, runner: ubuntu-24.04 }
+          - { os: linux, arch: arm64, runner: ubuntu-24.04-arm }
+          - { os: darwin, arch: amd64, runner: macos-15-intel }
+          - { os: darwin, arch: arm64, runner: macos-15 }
+          - { os: windows, arch: amd64, runner: windows-2025 }
+          - { os: windows, arch: arm64, runner: windows-11-arm }
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ilammy/msvc-dev-cmd@v1
+        if: runner.os == 'Windows'
+        with:
+          arch: ${{ matrix.arch == 'arm64' && 'amd64_arm64' || 'amd64' }}
+      - name: Install Ninja
+        run: |
+          if [ "$RUNNER_OS" = Linux ]; then sudo apt-get update && sudo apt-get install -y ninja-build
+          elif [ "$RUNNER_OS" = macOS ]; then brew install ninja
+          else choco install ninja -y; fi
+      - name: Build
+        run: sh build.sh "${{ matrix.os }}" "${{ matrix.arch }}" | tee build-summary.txt
+      - name: Keep the sizes for the release notes
+        run: sed -n '/^sizes/,$p' build-summary.txt > "dist/sizes-${{ matrix.os }}-${{ matrix.arch }}.txt"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: bundle-${{ matrix.os }}-${{ matrix.arch }}
+          path: dist/*
+
+  release:
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/llvm-')
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v8
+        with:
+          path: assets
+          merge-multiple: true
+      - name: Publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          version=$(tr -d '[:space:]' < llvm-version)
+          case "$TAG" in "llvm-$version-r"*) ;; *) echo "tag $TAG does not match llvm-version $version" >&2; exit 1 ;; esac
+          cd assets
+          cat -- *.sha256 | sort -k2 > SHA256SUMS
+          { echo "Static lld, opt and llc for LLVM $version (see build.sh)."; echo; echo '```'; cat sizes-*.txt; echo '```'; } > ../notes.md
+          rm -- sizes-*.txt
+          cd ..
+          gh release create "$TAG" --title "$TAG" --notes-file notes.md --verify-tag assets/*
