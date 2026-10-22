@@ -2,7 +2,7 @@
 
 Static [lld](https://lld.llvm.org), `opt` and `llc` builds for [Manuscript](https://github.com/manuscript-lang/manuscript), one per platform (Linux, macOS and Windows on amd64 and arm64). Manuscript's `ms` embeds the `lld` it links programs with, so no C toolchain or SDK is needed; `opt` and `llc` are for LLVM-optimized release builds.
 
-Nothing here is patched: `build.sh` downloads the pinned upstream LLVM source (`llvm-version`), builds it statically (no shared libLLVM, no zlib or zstd) and packs the stripped binaries.
+Nothing here is patched: `build.sh` downloads the pinned upstream LLVM source archive (`llvm-version`), builds it statically (no shared libLLVM, no zlib or zstd) and packs the stripped binaries.
 
 ## Releases
 

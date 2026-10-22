@@ -19,13 +19,12 @@ cd "$work"
 # llvm's CMake expects the cmake and third-party trees next to the llvm source directory, and lld's Mach-O
 # linker includes libunwind's headers from ../libunwind/include.
 if [ ! -d llvm ]; then
-    base=https://github.com/llvm/llvm-project/releases/download/llvmorg-$version
-    for part in llvm lld cmake third-party libunwind; do
-        curl --fail --location --retry 3 -sS -o "$part.tar.xz" "$base/$part-$version.src.tar.xz"
-        mkdir -p "$part"
-        tar -xf "$part.tar.xz" -C "$part" --strip-components=1
-        rm "$part.tar.xz"
-    done
+    # Releases from 22 on publish only the monolithic source archive; its top-level directories are the same trees.
+    curl --fail --location --retry 3 -sS -o src.tar.xz \
+        "https://github.com/llvm/llvm-project/releases/download/llvmorg-$version/llvm-project-$version.src.tar.xz"
+    tar -xf src.tar.xz --strip-components=1 --exclude=mlgo-utils llvm-project-"$version".src/llvm llvm-project-"$version".src/lld \
+        llvm-project-"$version".src/cmake llvm-project-"$version".src/third-party llvm-project-"$version".src/libunwind llvm-project-"$version".src/libc
+    rm src.tar.xz
 fi
 
 set -- -G Ninja -S llvm -B build -DCMAKE_BUILD_TYPE=Release \
