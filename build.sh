@@ -23,7 +23,7 @@ if [ ! -d llvm ]; then
     curl --fail --location --retry 3 -sS -o src.tar.xz \
         "https://github.com/llvm/llvm-project/releases/download/llvmorg-$version/llvm-project-$version.src.tar.xz"
     tar -xf src.tar.xz --strip-components=1 llvm-project-"$version".src/llvm llvm-project-"$version".src/lld \
-        llvm-project-"$version".src/cmake llvm-project-"$version".src/third-party llvm-project-"$version".src/libunwind
+        llvm-project-"$version".src/cmake llvm-project-"$version".src/third-party llvm-project-"$version".src/libunwind llvm-project-"$version".src/libc
     rm src.tar.xz
 fi
 
