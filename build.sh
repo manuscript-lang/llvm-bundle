@@ -42,7 +42,8 @@ case "$os" in
         [ "$arch" = arm64 ] && osx_arch=arm64
         set -- "$@" -DCMAKE_OSX_DEPLOYMENT_TARGET=12.0 "-DCMAKE_OSX_ARCHITECTURES=$osx_arch" ;;
     windows) set -- "$@" -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded ;;
-    *) set -- "$@" "-DCMAKE_EXE_LINKER_FLAGS=-static-libstdc++ -static-libgcc" ;;
+    # Fully static, so the lld ms embeds also runs on musl and old-glibc hosts.
+    *) set -- "$@" "-DCMAKE_EXE_LINKER_FLAGS=-static" ;;
 esac
 cmake "$@"
 # LLVM_BUILD_TOOLS=OFF keeps the default target small; the three we ship are built by name.
@@ -60,6 +61,12 @@ case "$os" in
     darwin) strip -x "$stage"/lld/bin/* "$stage"/tools/bin/* ;;
     *) strip --strip-unneeded "$stage"/lld/bin/* "$stage"/tools/bin/* ;;
 esac
+
+if [ "$os" = linux ]; then
+    for f in "$stage"/lld/bin/* "$stage"/tools/bin/*; do
+        if ldd "$f" >/dev/null 2>&1; then echo "$f is dynamically linked" >&2; exit 1; fi
+    done
+fi
 
 lld_asset=lld-$version-$os-$arch.tar.gz
 tools_asset=llvm-tools-$version-$os-$arch.tar.gz

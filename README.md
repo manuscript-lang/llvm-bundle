@@ -16,7 +16,7 @@ A tag `llvm-<version>-r<revision>` publishes, per platform `<os>-<arch>` (`linux
 
 Consumers download a release asset and verify it against a checksum **pinned in their own repository**, never one fetched from the same release. The release notes list the binary and archive sizes.
 
-The revision is bumped when the recipe changes without a version change. Linux binaries are built on Ubuntu 24.04, so they need its glibc or newer.
+The revision is bumped when the recipe changes without a version change. Linux binaries are fully static (`build.sh` fails if one is dynamically linked), so they run on glibc and musl hosts alike.
 
 ## Changing the recipe
 
