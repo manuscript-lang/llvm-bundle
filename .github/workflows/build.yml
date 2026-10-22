@@ -80,4 +80,10 @@ jobs:
           { echo "Static lld, opt and llc for LLVM $version (see build.sh)."; echo; echo '```'; cat sizes-*.txt; echo '```'; } > ../notes.md
           rm -- sizes-*.txt
           cd ..
-          gh release create "$TAG" --title "$TAG" --notes-file notes.md --verify-tag assets/*
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            # The release can already exist when it was drafted in the UI.
+            gh release edit "$TAG" --title "$TAG" --notes-file notes.md
+            gh release upload "$TAG" --clobber assets/*
+          else
+            gh release create "$TAG" --title "$TAG" --notes-file notes.md --verify-tag assets/*
+          fi
