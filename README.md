@@ -11,7 +11,7 @@ A tag `llvm-<version>-r<revision>` publishes, per platform `<os>-<arch>` (`linux
 | Asset | Contents |
 | --- | --- |
 | `lld-<version>-<os>-<arch>.tar.gz` | `bin/lld` (use `-flavor gnu`, `darwin` or `link`) |
-| `llvm-tools-<version>-<os>-<arch>.tar.gz` | `bin/opt`, `bin/llc` |
+| `llvm-tools-<version>-<os>-<arch>.tar.gz` | `bin/opt`, `bin/llc`, `bin/llvm-link`, `bin/llvm-dis` |
 | `SHA256SUMS` | the checksum of every asset |
 
 Consumers download a release asset and verify it against a checksum **pinned in their own repository**, never one fetched from the same release. The release notes list the binary and archive sizes.
