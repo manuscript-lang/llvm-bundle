@@ -6,7 +6,7 @@ Nothing here is patched: `build.sh` downloads the pinned upstream LLVM source (`
 
 ## Releases
 
-A tag `llvm-<version>-r<revision>` publishes, per platform `<os>-<arch>` (`linux`, `darwin`, `windows` × `amd64`, `arm64`):
+A tag `llvm-<version>-r<revision>` publishes, per platform `<os>-<arch>` (`linux`, `linux-musl`, `darwin`, `windows` × `amd64`, `arm64`):
 
 | Asset | Contents |
 | --- | --- |
@@ -16,11 +16,11 @@ A tag `llvm-<version>-r<revision>` publishes, per platform `<os>-<arch>` (`linux
 
 Consumers download a release asset and verify it against a checksum **pinned in their own repository**, never one fetched from the same release. The release notes list the binary and archive sizes.
 
-The revision is bumped when the recipe changes without a version change. Linux binaries are fully static (`build.sh` fails if one is dynamically linked), so they run on glibc and musl hosts alike.
+The revision is bumped when the recipe changes without a version change. Linux comes in two flavours, `linux` (built on Ubuntu 24.04 against glibc) and `linux-musl` (built on Alpine against musl). Both are fully static (`build.sh` fails if one is dynamically linked).
 
 ## Changing the recipe
 
-Edit `build.sh` or `llvm-version` in a pull request: CI builds all six platforms (30 to 60 minutes) without publishing. After merging, push the tag to publish and update the pins in the consumer.
+Edit `build.sh` or `llvm-version` in a pull request: CI builds all eight platforms (30 to 60 minutes) without publishing. After merging, push the tag to publish and update the pins in the consumer.
 
 ```sh
 sh build.sh linux amd64   # needs cmake, ninja, curl, and a C++ toolchain; writes dist/

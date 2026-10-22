@@ -1,5 +1,6 @@
 #!/bin/sh
 # Builds the pinned static lld, opt and llc for the host: `sh build.sh <os> <arch>`.
+# <os> is linux, linux-musl, darwin or windows; linux-musl must run on Alpine (see build.yml), linux on glibc.
 # Writes to dist/, each with a .sha256 beside it:
 #   lld-<version>-<os>-<arch>.tar.gz         bin/lld            the linker `ms` embeds (all of ELF, Mach-O, COFF)
 #   llvm-tools-<version>-<os>-<arch>.tar.gz  bin/opt, bin/llc   the optimizer and code generator
@@ -62,11 +63,12 @@ case "$os" in
     *) strip --strip-unneeded "$stage"/lld/bin/* "$stage"/tools/bin/* ;;
 esac
 
-if [ "$os" = linux ]; then
-    for f in "$stage"/lld/bin/* "$stage"/tools/bin/*; do
-        if ldd "$f" >/dev/null 2>&1; then echo "$f is dynamically linked" >&2; exit 1; fi
-    done
-fi
+case "$os" in
+    linux | linux-musl)
+        for f in "$stage"/lld/bin/* "$stage"/tools/bin/*; do
+            if readelf -lW "$f" | grep -q INTERP; then echo "$f is dynamically linked" >&2; exit 1; fi
+        done ;;
+esac
 
 lld_asset=lld-$version-$os-$arch.tar.gz
 tools_asset=llvm-tools-$version-$os-$arch.tar.gz

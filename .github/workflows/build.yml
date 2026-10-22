@@ -1,6 +1,6 @@
 name: Build
 
-# Builds the pinned static lld, opt and llc on a native runner of each of six platforms (see build.sh). Pushing a tag
+# Builds the pinned static lld, opt and llc on a native runner of each of eight platforms (see build.sh). Pushing a tag
 # `llvm-<version>-r<revision>` that matches llvm-version publishes the assets and a SHA256SUMS file to a release of the
 # same name; pull requests and manual runs only build, so a recipe change is proven before it is tagged.
 
@@ -29,6 +29,8 @@ jobs:
         include:
           - { os: linux, arch: amd64, runner: ubuntu-24.04 }
           - { os: linux, arch: arm64, runner: ubuntu-24.04-arm }
+          - { os: linux-musl, arch: amd64, runner: ubuntu-24.04 }
+          - { os: linux-musl, arch: arm64, runner: ubuntu-24.04-arm }
           - { os: darwin, arch: amd64, runner: macos-15-intel }
           - { os: darwin, arch: arm64, runner: macos-15 }
           - { os: windows, arch: amd64, runner: windows-2025 }
@@ -43,12 +45,22 @@ jobs:
         with:
           arch: ${{ matrix.arch == 'arm64' && 'amd64_arm64' || 'amd64' }}
       - name: Install Ninja
+        if: matrix.os != 'linux-musl'
         run: |
           if [ "$RUNNER_OS" = Linux ]; then sudo apt-get update && sudo apt-get install -y ninja-build
           elif [ "$RUNNER_OS" = macOS ]; then brew install ninja
           else choco install ninja -y; fi
       - name: Build
+        if: matrix.os != 'linux-musl'
         run: sh build.sh "${{ matrix.os }}" "${{ matrix.arch }}" | tee build-summary.txt
+      # The musl tools are built inside Alpine so they link Alpine's static musl.
+      - name: Build (musl)
+        if: matrix.os == 'linux-musl'
+        run: |
+          docker run --rm -v "$PWD:/w" -w /w alpine:3.21 sh -c '
+            apk add --no-cache build-base cmake ninja python3 linux-headers curl xz tar binutils &&
+            sh build.sh linux-musl "${{ matrix.arch }}"' | tee build-summary.txt
+          sudo chown -R "$(id -u):$(id -g)" dist
       - name: Keep the sizes for the release notes
         run: sed -n '/^sizes/,$p' build-summary.txt > "dist/sizes-${{ matrix.os }}-${{ matrix.arch }}.txt"
       - uses: actions/upload-artifact@v7
