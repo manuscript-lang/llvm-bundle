@@ -1,8 +1,8 @@
 #!/bin/sh
-# Builds the pinned static lld, opt and llc for the host: `sh build.sh <os> <arch>`.
+# Builds the pinned static lld, opt, llc and llvm-split for the host: `sh build.sh <os> <arch>`.
 # Writes to dist/, each with a .sha256 beside it:
 #   lld-<version>-<os>-<arch>.tar.gz         bin/lld            the linker `ms` embeds (all of ELF, Mach-O, COFF)
-#   llvm-tools-<version>-<os>-<arch>.tar.gz  bin/opt, bin/llc, bin/llvm-link, bin/llvm-dis   the optimizer, code generator, bitcode linker and disassembler
+#   llvm-tools-<version>-<os>-<arch>.tar.gz  bin/opt, bin/llc, bin/llvm-link, bin/llvm-dis, bin/llvm-split   the optimizer, code generator, bitcode linker, disassembler and module splitter
 # The version is the single pin in llvm-version. Everything is linked statically (no libLLVM shared library) and built
 # once in CI, then consumed by checksum.
 # Set LLVM_WORK to keep the source and build trees somewhere else (default: ./work).
@@ -27,9 +27,15 @@ if [ ! -d llvm ]; then
     rm src.tar.xz
 fi
 
+# Each platform's tools generate code only for the machine they run on (`ms` has no cross-target builds), so only that
+# backend is built; the other roughly halves the code generator.
+case "$arch" in
+    arm64) target=AArch64 ;;
+    *) target=X86 ;;
+esac
 set -- -G Ninja -S llvm -B build -DCMAKE_BUILD_TYPE=Release \
     -DLLVM_ENABLE_PROJECTS=lld -DLLVM_EXTERNAL_LLD_SOURCE_DIR="$work/lld" \
-    "-DLLVM_TARGETS_TO_BUILD=X86;AArch64" \
+    "-DLLVM_TARGETS_TO_BUILD=$target" \
     -DLLVM_ENABLE_ASSERTIONS=OFF -DLLVM_ENABLE_PLUGINS=OFF -DLLVM_BUILD_LLVM_DYLIB=OFF \
     -DLLVM_ENABLE_ZLIB=OFF -DLLVM_ENABLE_ZSTD=OFF -DLLVM_ENABLE_LIBXML2=OFF -DLLVM_ENABLE_TERMINFO=OFF \
     -DLLVM_ENABLE_LIBEDIT=OFF -DLLVM_ENABLE_LIBPFM=OFF \
@@ -45,7 +51,7 @@ case "$os" in
 esac
 cmake "$@"
 # LLVM_BUILD_TOOLS=OFF keeps the default target small; the ones we ship are built by name.
-cmake --build build --target lld opt llc llvm-link llvm-dis
+cmake --build build --target lld opt llc llvm-link llvm-dis llvm-split
 
 exe=
 [ "$os" = windows ] && exe=.exe
@@ -53,7 +59,7 @@ stage=$work/stage
 rm -rf "$stage"
 mkdir -p "$stage/lld/bin" "$stage/tools/bin"
 cp "build/bin/lld$exe" "$stage/lld/bin/"
-cp "build/bin/opt$exe" "build/bin/llc$exe" "build/bin/llvm-link$exe" "build/bin/llvm-dis$exe" "$stage/tools/bin/"
+cp "build/bin/opt$exe" "build/bin/llc$exe" "build/bin/llvm-link$exe" "build/bin/llvm-dis$exe" "build/bin/llvm-split$exe" "$stage/tools/bin/"
 case "$os" in
     windows) ;;
     darwin) strip -x "$stage"/lld/bin/* "$stage"/tools/bin/* ;;

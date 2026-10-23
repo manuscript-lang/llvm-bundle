@@ -1,6 +1,6 @@
 name: Build
 
-# Builds the pinned static lld, opt and llc on a native runner of each of six platforms (see build.sh). Pushing a tag
+# Builds the pinned static lld, opt, llc and llvm-split on a native runner of each of six platforms (see build.sh). Pushing a tag
 # `llvm-<version>-r<revision>` that matches llvm-version publishes the assets and a SHA256SUMS file to a release of the
 # same name; pull requests and manual runs only build, so a recipe change is proven before it is tagged.
 
@@ -77,7 +77,7 @@ jobs:
           case "$TAG" in "llvm-$version-r"*) ;; *) echo "tag $TAG does not match llvm-version $version" >&2; exit 1 ;; esac
           cd assets
           cat -- *.sha256 | sort -k2 > SHA256SUMS
-          { echo "Static lld, opt and llc for LLVM $version (see build.sh)."; echo; echo '```'; cat sizes-*.txt; echo '```'; } > ../notes.md
+          { echo "Static lld, opt, llc and llvm-split for LLVM $version (see build.sh)."; echo; echo '```'; cat sizes-*.txt; echo '```'; } > ../notes.md
           rm -- sizes-*.txt
           cd ..
           if gh release view "$TAG" >/dev/null 2>&1; then

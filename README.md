@@ -1,8 +1,8 @@
 # llvm-bundle
 
-Static [lld](https://lld.llvm.org), `opt` and `llc` builds for [Manuscript](https://github.com/manuscript-lang/manuscript), one per platform (Linux, macOS and Windows on amd64 and arm64). Manuscript's `ms` embeds the `lld` it links programs with, so no C toolchain or SDK is needed; `opt` and `llc` are for LLVM-optimized release builds.
+Static [lld](https://lld.llvm.org), `opt`, `llc` and `llvm-split` builds for [Manuscript](https://github.com/manuscript-lang/manuscript), one per platform (Linux, macOS and Windows on amd64 and arm64). Manuscript's `ms` embeds the `lld` it links programs with, so no C toolchain or SDK is needed; `opt` and `llc` are for LLVM-optimized release builds.
 
-Nothing here is patched: `build.sh` downloads the pinned upstream LLVM source archive (`llvm-version`), builds it statically (no shared libLLVM, no zlib or zstd) and packs the stripped binaries.
+Nothing here is patched: `build.sh` downloads the pinned upstream LLVM source archive (`llvm-version`), builds it statically (no shared libLLVM, no zlib or zstd) with only the backend for the platform's own architecture (X86 on amd64, AArch64 on arm64) and packs the stripped binaries.
 
 ## Releases
 
@@ -11,7 +11,7 @@ A tag `llvm-<version>-r<revision>` publishes, per platform `<os>-<arch>` (`linux
 | Asset | Contents |
 | --- | --- |
 | `lld-<version>-<os>-<arch>.tar.gz` | `bin/lld` (use `-flavor gnu`, `darwin` or `link`) |
-| `llvm-tools-<version>-<os>-<arch>.tar.gz` | `bin/opt`, `bin/llc`, `bin/llvm-link`, `bin/llvm-dis` |
+| `llvm-tools-<version>-<os>-<arch>.tar.gz` | `bin/opt`, `bin/llc`, `bin/llvm-link`, `bin/llvm-dis`, `bin/llvm-split` |
 | `SHA256SUMS` | the checksum of every asset |
 
 Consumers download a release asset and verify it against a checksum **pinned in their own repository**, never one fetched from the same release. The release notes list the binary and archive sizes.
