@@ -25,8 +25,6 @@ if [ ! -d llvm ]; then
     tar -xf src.tar.xz --strip-components=1 --exclude=mlgo-utils llvm-project-"$version".src/llvm llvm-project-"$version".src/lld \
         llvm-project-"$version".src/cmake llvm-project-"$version".src/third-party llvm-project-"$version".src/libunwind llvm-project-"$version".src/libc
     rm src.tar.xz
-    # The one local patch (see lld-macho-adrp-add-adr-slot.patch): upstream lld clobbers a live register in AdrpAdd hints.
-    patch -p1 -d "$work" < "$repository/lld-macho-adrp-add-adr-slot.patch"
 fi
 
 # Each platform's tools generate code only for the machine they run on (`ms` has no cross-target builds), so only that

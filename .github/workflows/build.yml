@@ -9,7 +9,6 @@ on:
   pull_request:
     paths:
       - build.sh
-      - '*.patch'
       - llvm-version
       - .github/workflows/build.yml
   push:
