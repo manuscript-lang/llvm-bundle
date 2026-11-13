@@ -56,9 +56,15 @@ case "$os" in
         set -- "$@" -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ -DLLVM_USE_LINKER=lld \
             "-DCMAKE_EXE_LINKER_FLAGS=-static-libstdc++ -static-libgcc" ;;
 esac
+# A compiler cache (set up by CI) makes a rebuild with an unchanged tree or recipe mostly cache hits.
+if command -v ccache >/dev/null 2>&1; then
+    set -- "$@" -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
+    ccache --zero-stats >/dev/null
+fi
 cmake "$@"
 # LLVM_BUILD_TOOLS=OFF keeps the default target small; the ones we ship are built by name.
 cmake --build build --target lld opt llc llvm-link llvm-dis llvm-split
+if command -v ccache >/dev/null 2>&1; then ccache --show-stats; fi
 
 exe=
 [ "$os" = windows ] && exe=.exe

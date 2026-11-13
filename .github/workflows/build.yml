@@ -12,6 +12,12 @@ on:
       - llvm-version
       - .github/workflows/build.yml
   push:
+    # Builds on main keep the compiler cache warm: a tag run can only read caches made on the default branch.
+    branches: [main]
+    paths:
+      - build.sh
+      - llvm-version
+      - .github/workflows/build.yml
     tags:
       - 'llvm-*'
 
@@ -47,8 +53,34 @@ jobs:
           if [ "$RUNNER_OS" = Linux ]; then sudo apt-get update && sudo apt-get install -y ninja-build
           elif [ "$RUNNER_OS" = macOS ]; then brew install ninja
           else choco install ninja -y; fi
+      - name: Install ccache
+        run: |
+          if [ "$RUNNER_OS" = Linux ]; then sudo apt-get install -y ccache
+          elif [ "$RUNNER_OS" = macOS ]; then brew install ccache
+          else choco install ccache -y; fi
+      - name: Restore the compiler cache
+        id: ccache
+        uses: actions/cache/restore@v4
+        with:
+          path: .ccache
+          key: ccache-${{ matrix.os }}-${{ matrix.arch }}-${{ hashFiles('llvm-version', 'build.sh') }}-${{ github.run_id }}
+          restore-keys: |
+            ccache-${{ matrix.os }}-${{ matrix.arch }}-${{ hashFiles('llvm-version', 'build.sh') }}-
+            ccache-${{ matrix.os }}-${{ matrix.arch }}-
+      - name: Configure ccache
+        run: |
+          echo "CCACHE_DIR=$GITHUB_WORKSPACE/.ccache" >> "$GITHUB_ENV"
+          echo "CCACHE_MAXSIZE=1500M" >> "$GITHUB_ENV"
+          echo "CCACHE_COMPRESS=true" >> "$GITHUB_ENV"
+          echo "CCACHE_BASEDIR=$GITHUB_WORKSPACE" >> "$GITHUB_ENV"
       - name: Build
         run: sh build.sh "${{ matrix.os }}" "${{ matrix.arch }}" | tee build-summary.txt
+      - name: Save the compiler cache
+        if: always() && steps.ccache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: .ccache
+          key: ${{ steps.ccache.outputs.cache-primary-key }}
       - name: Keep the sizes for the release notes
         run: sed -n '/^sizes/,$p' build-summary.txt > "dist/sizes-${{ matrix.os }}-${{ matrix.arch }}.txt"
       - uses: actions/upload-artifact@v7
