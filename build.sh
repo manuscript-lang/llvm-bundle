@@ -44,13 +44,21 @@ set -- -G Ninja -S llvm -B build -DCMAKE_BUILD_TYPE=Release \
 # Speed: ThinLTO across the whole tree, and no -fPIC since these are plain executables (never a shared library).
 # ThinLTO needs clang everywhere: the system clang on Linux (linked with lld), Apple clang on macOS, clang-cl on Windows.
 set -- "$@" -DLLVM_ENABLE_LTO=Thin -DLLVM_ENABLE_PIC=OFF
+# Linking is most of the build, because ThinLTO generates all the code there and ccache cannot cache it. The linker's
+# own ThinLTO cache keeps the generated code per module, so an unchanged tree relinks from the cache (CI saves the
+# directory next to ccache's). lld caps it at 1 GB; Apple's linker prunes entries it has not used for a week.
+lto_cache=$repository/.lto-cache
+mkdir -p "$lto_cache"
 case "$os" in
     darwin)
         osx_arch=x86_64
         [ "$arch" = arm64 ] && osx_arch=arm64
-        set -- "$@" -DCMAKE_OSX_DEPLOYMENT_TARGET=12.0 "-DCMAKE_OSX_ARCHITECTURES=$osx_arch" ;;
+        set -- "$@" -DCMAKE_OSX_DEPLOYMENT_TARGET=12.0 "-DCMAKE_OSX_ARCHITECTURES=$osx_arch" \
+            "-DCMAKE_EXE_LINKER_FLAGS=-Wl,-cache_path_lto,$lto_cache" ;;
     windows)
-        set -- "$@" -DCMAKE_C_COMPILER=clang-cl -DCMAKE_CXX_COMPILER=clang-cl -DLLVM_USE_LINKER=lld-link \
+        lto_cache=$(cygpath -m "$lto_cache")
+        set -- "$@" "-DCMAKE_EXE_LINKER_FLAGS=/lldltocache:$lto_cache /lldltocachepolicy:cache_size_bytes=1g" \
+            -DCMAKE_C_COMPILER=clang-cl -DCMAKE_CXX_COMPILER=clang-cl -DLLVM_USE_LINKER=lld-link \
             -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded ;;
     *)
         # Linux tools run on glibc 2.28 and later, so CI builds in the manylinux_2_28 container (AlmaLinux 8) and links
@@ -61,7 +69,7 @@ case "$os" in
         [ -n "$gcc_dir" ] && linux_flags="--gcc-install-dir=$gcc_dir"
         set -- "$@" -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ -DLLVM_USE_LINKER=lld \
             "-DCMAKE_C_FLAGS=$linux_flags" "-DCMAKE_CXX_FLAGS=$linux_flags" \
-            "-DCMAKE_EXE_LINKER_FLAGS=$linux_flags -static-libstdc++ -static-libgcc" ;;
+            "-DCMAKE_EXE_LINKER_FLAGS=$linux_flags -static-libstdc++ -static-libgcc -Wl,--thinlto-cache-dir=$lto_cache,--thinlto-cache-policy=cache_size_bytes=1g" ;;
 esac
 # A compiler cache (set up by CI) makes a rebuild with an unchanged tree or recipe mostly cache hits.
 if command -v ccache >/dev/null 2>&1; then
