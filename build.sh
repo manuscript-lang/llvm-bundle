@@ -67,9 +67,11 @@ case "$os" in
         linux_flags=
         gcc_dir=$(ls -d /opt/rh/gcc-toolset-*/root/usr/lib/gcc/*-redhat-linux/* 2>/dev/null | sort -V | tail -n 1)
         [ -n "$gcc_dir" ] && linux_flags="--gcc-install-dir=$gcc_dir"
+        # -fuse-ld=lld is also needed here: CMake's first compiler test links before LLVM_USE_LINKER applies, and GNU ld
+        # rejects the lld-only cache option.
         set -- "$@" -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ -DLLVM_USE_LINKER=lld \
             "-DCMAKE_C_FLAGS=$linux_flags" "-DCMAKE_CXX_FLAGS=$linux_flags" \
-            "-DCMAKE_EXE_LINKER_FLAGS=$linux_flags -static-libstdc++ -static-libgcc -Wl,--thinlto-cache-dir=$lto_cache,--thinlto-cache-policy=cache_size_bytes=1g" ;;
+            "-DCMAKE_EXE_LINKER_FLAGS=$linux_flags -fuse-ld=lld -static-libstdc++ -static-libgcc -Wl,--thinlto-cache-dir=$lto_cache,--thinlto-cache-policy=cache_size_bytes=1g" ;;
 esac
 # A compiler cache (set up by CI) makes a rebuild with an unchanged tree or recipe mostly cache hits.
 if command -v ccache >/dev/null 2>&1; then
