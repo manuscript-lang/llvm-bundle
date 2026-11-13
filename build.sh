@@ -2,7 +2,7 @@
 # Builds the pinned static lld, opt, llc and llvm-split for the host: `sh build.sh <os> <arch>`.
 # Writes to dist/, each with a .sha256 beside it:
 #   lld-<version>-<os>-<arch>.tar.gz         bin/lld            the linker `ms` embeds (all of ELF, Mach-O, COFF)
-#   llvm-tools-<version>-<os>-<arch>.tar.gz  bin/opt, bin/llc, bin/llvm-link, bin/llvm-dis, bin/llvm-split   the optimizer, code generator, bitcode linker, disassembler and module splitter
+#   llvm-tools-<version>-<os>-<arch>.tar.gz  bin/opt, bin/llc, bin/llvm-link, bin/llvm-dis, bin/llvm-split, bin/llvm-extract, bin/llvm-reduce   the optimizer, code generator, bitcode linker, disassembler, module splitter, function extractor and IR reducer
 # The version is the single pin in llvm-version. Everything is linked statically (no libLLVM shared library) and built
 # once in CI, then consumed by checksum.
 # Set LLVM_WORK to keep the source and build trees somewhere else (default: ./work).
@@ -70,7 +70,7 @@ if command -v ccache >/dev/null 2>&1; then
 fi
 cmake "$@"
 # LLVM_BUILD_TOOLS=OFF keeps the default target small; the ones we ship are built by name.
-cmake --build build --target lld opt llc llvm-link llvm-dis llvm-split
+cmake --build build --target lld opt llc llvm-link llvm-dis llvm-split llvm-extract llvm-reduce
 if command -v ccache >/dev/null 2>&1; then ccache --show-stats; fi
 
 exe=
@@ -79,7 +79,8 @@ stage=$work/stage
 rm -rf "$stage"
 mkdir -p "$stage/lld/bin" "$stage/tools/bin"
 cp "build/bin/lld$exe" "$stage/lld/bin/"
-cp "build/bin/opt$exe" "build/bin/llc$exe" "build/bin/llvm-link$exe" "build/bin/llvm-dis$exe" "build/bin/llvm-split$exe" "$stage/tools/bin/"
+cp "build/bin/opt$exe" "build/bin/llc$exe" "build/bin/llvm-link$exe" "build/bin/llvm-dis$exe" "build/bin/llvm-split$exe" \
+   "build/bin/llvm-extract$exe" "build/bin/llvm-reduce$exe" "$stage/tools/bin/"
 case "$os" in
     windows) ;;
     darwin) strip -x "$stage"/lld/bin/* "$stage"/tools/bin/* ;;
