@@ -68,7 +68,7 @@ jobs:
           else choco install ninja -y; fi
       - name: Install ccache
         run: |
-          if [ "$RUNNER_OS" = Linux ]; then sudo apt-get install -y ccache
+          if [ "$RUNNER_OS" = Linux ]; then dnf install -y epel-release && dnf install -y ccache
           elif [ "$RUNNER_OS" = macOS ]; then brew install ccache
           else choco install ccache -y; fi
       - name: Restore the compiler cache
