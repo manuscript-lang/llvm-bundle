@@ -9,6 +9,7 @@ on:
   pull_request:
     paths:
       - build.sh
+      - check-glibc-floor.sh
       - llvm-version
       - .github/workflows/build.yml
   push:
@@ -28,13 +29,15 @@ jobs:
   build:
     name: ${{ matrix.os }}-${{ matrix.arch }}
     runs-on: ${{ matrix.runner }}
+    # Linux builds in AlmaLinux 8 (glibc 2.28), so the tools run on every glibc from 2.28 on; empty elsewhere.
+    container: ${{ matrix.container }}
     timeout-minutes: 240
     strategy:
       fail-fast: false
       matrix:
         include:
-          - { os: linux, arch: amd64, runner: ubuntu-24.04 }
-          - { os: linux, arch: arm64, runner: ubuntu-24.04-arm }
+          - { os: linux, arch: amd64, runner: ubuntu-24.04, container: 'quay.io/pypa/manylinux_2_28_x86_64' }
+          - { os: linux, arch: arm64, runner: ubuntu-24.04-arm, container: 'quay.io/pypa/manylinux_2_28_aarch64' }
           - { os: darwin, arch: amd64, runner: macos-15-intel }
           - { os: darwin, arch: arm64, runner: macos-15 }
           - { os: windows, arch: amd64, runner: windows-2025 }
@@ -50,12 +53,22 @@ jobs:
           arch: ${{ matrix.arch == 'arm64' && 'amd64_arm64' || 'amd64' }}
       - name: Install Ninja
         run: |
-          if [ "$RUNNER_OS" = Linux ]; then sudo apt-get update && sudo apt-get install -y ninja-build
+          if [ "$RUNNER_OS" = Linux ]; then
+            dnf install -y clang lld
+            /opt/python/cp312-cp312/bin/pip install ninja cmake
+            ln -sf /opt/python/cp312-cp312/bin/ninja /opt/python/cp312-cp312/bin/cmake /usr/local/bin/
+            # Fail in a minute, not after an hour, if the compiler cannot build C++ against the gcc-toolset.
+            clang --version
+            gcc_dir=$(ls -d /opt/rh/gcc-toolset-*/root/usr/lib/gcc/*-redhat-linux/* | sort -V | tail -n 1)
+            echo '#include <string>
+            int main() { return std::string("a").size() == 1 ? 0 : 1; }' > "$RUNNER_TEMP/probe.cc"
+            clang++ -std=c++17 --gcc-install-dir="$gcc_dir" -flto=thin -fuse-ld=lld -static-libstdc++ -static-libgcc "$RUNNER_TEMP/probe.cc" -o "$RUNNER_TEMP/probe"
+            "$RUNNER_TEMP/probe"
           elif [ "$RUNNER_OS" = macOS ]; then brew install ninja
           else choco install ninja -y; fi
       - name: Install ccache
         run: |
-          if [ "$RUNNER_OS" = Linux ]; then sudo apt-get install -y ccache
+          if [ "$RUNNER_OS" = Linux ]; then dnf install -y epel-release && dnf install -y ccache
           elif [ "$RUNNER_OS" = macOS ]; then brew install ccache
           else choco install ccache -y; fi
       - name: Restore the compiler cache
