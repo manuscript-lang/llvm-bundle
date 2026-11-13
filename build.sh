@@ -41,13 +41,20 @@ set -- -G Ninja -S llvm -B build -DCMAKE_BUILD_TYPE=Release \
     -DLLVM_ENABLE_LIBEDIT=OFF -DLLVM_ENABLE_LIBPFM=OFF \
     -DLLVM_INCLUDE_TESTS=OFF -DLLVM_INCLUDE_BENCHMARKS=OFF -DLLVM_INCLUDE_EXAMPLES=OFF \
     -DLLVM_INCLUDE_DOCS=OFF -DLLVM_BUILD_TOOLS=OFF -DLLVM_INCLUDE_UTILS=OFF -DLLVM_ENABLE_BINDINGS=OFF
+# Speed: ThinLTO across the whole tree, and no -fPIC since these are plain executables (never a shared library).
+# ThinLTO needs clang everywhere: the system clang on Linux (linked with lld), Apple clang on macOS, clang-cl on Windows.
+set -- "$@" -DLLVM_ENABLE_LTO=Thin -DLLVM_ENABLE_PIC=OFF
 case "$os" in
     darwin)
         osx_arch=x86_64
         [ "$arch" = arm64 ] && osx_arch=arm64
         set -- "$@" -DCMAKE_OSX_DEPLOYMENT_TARGET=12.0 "-DCMAKE_OSX_ARCHITECTURES=$osx_arch" ;;
-    windows) set -- "$@" -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded ;;
-    *) set -- "$@" "-DCMAKE_EXE_LINKER_FLAGS=-static-libstdc++ -static-libgcc" ;;
+    windows)
+        set -- "$@" -DCMAKE_C_COMPILER=clang-cl -DCMAKE_CXX_COMPILER=clang-cl -DLLVM_USE_LINKER=lld-link \
+            -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded ;;
+    *)
+        set -- "$@" -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ -DLLVM_USE_LINKER=lld \
+            "-DCMAKE_EXE_LINKER_FLAGS=-static-libstdc++ -static-libgcc" ;;
 esac
 cmake "$@"
 # LLVM_BUILD_TOOLS=OFF keeps the default target small; the ones we ship are built by name.
