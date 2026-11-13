@@ -46,7 +46,7 @@ set -- -G Ninja -S llvm -B build -DCMAKE_BUILD_TYPE=Release \
 set -- "$@" -DLLVM_ENABLE_LTO=Thin -DLLVM_ENABLE_PIC=OFF
 # Linking is most of the build, because ThinLTO generates all the code there and ccache cannot cache it. The linker's
 # own ThinLTO cache keeps the generated code per module, so an unchanged tree relinks from the cache (CI saves the
-# directory next to ccache's). Capped at 1 GB.
+# directory next to ccache's). lld caps it at 1 GB; Apple's linker prunes entries it has not used for a week.
 lto_cache=$repository/.lto-cache
 mkdir -p "$lto_cache"
 case "$os" in
@@ -54,7 +54,7 @@ case "$os" in
         osx_arch=x86_64
         [ "$arch" = arm64 ] && osx_arch=arm64
         set -- "$@" -DCMAKE_OSX_DEPLOYMENT_TARGET=12.0 "-DCMAKE_OSX_ARCHITECTURES=$osx_arch" \
-            "-DCMAKE_EXE_LINKER_FLAGS=-Wl,-cache_path_lto,$lto_cache,-max_lto_cache_size,1073741824" ;;
+            "-DCMAKE_EXE_LINKER_FLAGS=-Wl,-cache_path_lto,$lto_cache" ;;
     windows)
         lto_cache=$(cygpath -m "$lto_cache")
         set -- "$@" "-DCMAKE_EXE_LINKER_FLAGS=/lldltocache:$lto_cache /lldltocachepolicy:cache_size_bytes=1g" \

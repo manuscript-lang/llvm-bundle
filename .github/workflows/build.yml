@@ -97,8 +97,9 @@ jobs:
         run: sh build.sh "${{ matrix.os }}" "${{ matrix.arch }}" | tee build-summary.txt
       - name: Save the compiler and ThinLTO caches
         # Pull requests and tag builds only read: a cache saved there is invisible to other refs, and each save is
-        # large enough to push the main-branch cache out of the 10 GB repository limit.
-        if: always() && github.event_name != 'pull_request' && !startsWith(github.ref, 'refs/tags/')
+        # large enough to push the main-branch cache out of the 10 GB repository limit. A failed build saves nothing, since
+        # a newer, empty cache would be restored ahead of a good one; a cancelled one still saves what it compiled.
+        if: ${{ !failure() && github.event_name != 'pull_request' && !startsWith(github.ref, 'refs/tags/') }}
         uses: actions/cache/save@v4
         with:
           path: |
