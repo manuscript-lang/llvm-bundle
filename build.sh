@@ -53,8 +53,15 @@ case "$os" in
         set -- "$@" -DCMAKE_C_COMPILER=clang-cl -DCMAKE_CXX_COMPILER=clang-cl -DLLVM_USE_LINKER=lld-link \
             -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded ;;
     *)
+        # Linux tools run on glibc 2.28 and later, so CI builds in the manylinux_2_28 container (AlmaLinux 8) and links
+        # libstdc++ and libgcc statically. The container's own gcc 8 is too old for LLVM's C++, so clang is pointed at the
+        # newest gcc-toolset for its headers and libstdc++.
+        linux_flags=
+        gcc_dir=$(ls -d /opt/rh/gcc-toolset-*/root/usr/lib/gcc/*-redhat-linux/* 2>/dev/null | sort -V | tail -n 1)
+        [ -n "$gcc_dir" ] && linux_flags="--gcc-install-dir=$gcc_dir"
         set -- "$@" -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ -DLLVM_USE_LINKER=lld \
-            "-DCMAKE_EXE_LINKER_FLAGS=-static-libstdc++ -static-libgcc" ;;
+            "-DCMAKE_C_FLAGS=$linux_flags" "-DCMAKE_CXX_FLAGS=$linux_flags" \
+            "-DCMAKE_EXE_LINKER_FLAGS=$linux_flags -static-libstdc++ -static-libgcc" ;;
 esac
 # A compiler cache (set up by CI) makes a rebuild with an unchanged tree or recipe mostly cache hits.
 if command -v ccache >/dev/null 2>&1; then
@@ -76,7 +83,9 @@ cp "build/bin/opt$exe" "build/bin/llc$exe" "build/bin/llvm-link$exe" "build/bin/
 case "$os" in
     windows) ;;
     darwin) strip -x "$stage"/lld/bin/* "$stage"/tools/bin/* ;;
-    *) strip --strip-unneeded "$stage"/lld/bin/* "$stage"/tools/bin/* ;;
+    *) strip --strip-unneeded "$stage"/lld/bin/* "$stage"/tools/bin/*
+        # Fail the build if a binary needs a glibc newer than 2.28 or a library glibc does not provide.
+        sh "$repository/check-glibc-floor.sh" "$stage"/lld/bin/* "$stage"/tools/bin/* ;;
 esac
 
 lld_asset=lld-$version-$os-$arch.tar.gz
