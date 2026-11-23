@@ -116,5 +116,7 @@ int main(int argc, char **argv) {
   }
   printf("object %zu bytes, DWARF line tables %s, any debug section %s\n", size, has_dwarf ? "present" : "absent",
          has_any ? "present" : "absent");
-  return size > 0 && has_any ? 0 : 1;
+  /* DWARF ("debug_line", also inside Mach-O's "__debug_line") or CodeView (".debug$S") both prove the library kept the
+   * line tables, which is what the fault-table reader needs. */
+  return size > 0 && (has_dwarf || has_any) ? 0 : 1;
 }
