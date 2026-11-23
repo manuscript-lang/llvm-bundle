@@ -1,6 +1,6 @@
 name: Build
 
-# Builds the pinned static lld, opt, llc and llvm-split on a native runner of each of six platforms (see build.sh). Pushing a tag
+# Builds the pinned static lld, opt, llc and llvm-split, and the shared LLVM library (build-lib.sh), on a native runner of each of six platforms (see build.sh). Pushing a tag
 # `llvm-<version>-r<revision>` that matches llvm-version publishes the assets and a SHA256SUMS file to a release of the
 # same name; pull requests and manual runs only build, so a recipe change is proven before it is tagged.
 
@@ -9,6 +9,8 @@ on:
   pull_request:
     paths:
       - build.sh
+      - build-lib.sh
+      - smoke/**
       - check-glibc-floor.sh
       - llvm-version
       - .github/workflows/build.yml
@@ -17,6 +19,7 @@ on:
     branches: [main]
     paths:
       - build.sh
+      - build-lib.sh
       - llvm-version
       - .github/workflows/build.yml
     tags:
@@ -83,9 +86,9 @@ jobs:
           path: |
             .ccache
             .lto-cache
-          key: ccache-${{ matrix.os }}-${{ matrix.arch }}-${{ hashFiles('llvm-version', 'build.sh') }}-${{ github.run_id }}
+          key: ccache-${{ matrix.os }}-${{ matrix.arch }}-${{ hashFiles('llvm-version', 'build.sh', 'build-lib.sh') }}-${{ github.run_id }}
           restore-keys: |
-            ccache-${{ matrix.os }}-${{ matrix.arch }}-${{ hashFiles('llvm-version', 'build.sh') }}-
+            ccache-${{ matrix.os }}-${{ matrix.arch }}-${{ hashFiles('llvm-version', 'build.sh', 'build-lib.sh') }}-
             ccache-${{ matrix.os }}-${{ matrix.arch }}-
       - name: Configure ccache
         run: |
@@ -94,7 +97,10 @@ jobs:
           echo "CCACHE_COMPRESS=true" >> "$GITHUB_ENV"
           echo "CCACHE_BASEDIR=$GITHUB_WORKSPACE" >> "$GITHUB_ENV"
       - name: Build
-        run: sh build.sh "${{ matrix.os }}" "${{ matrix.arch }}" | tee build-summary.txt
+        run: |
+          sh build.sh "${{ matrix.os }}" "${{ matrix.arch }}" | tee build-summary.txt
+          # The shared library reuses the source tree build.sh downloaded.
+          sh build-lib.sh "${{ matrix.os }}" "${{ matrix.arch }}" | tee -a build-summary.txt
       - name: Save the compiler and ThinLTO caches
         # Pull requests and tag builds only read: a cache saved there is invisible to other refs, and each save is
         # large enough to push the main-branch cache out of the 10 GB repository limit. A failed build saves nothing, since
@@ -107,7 +113,7 @@ jobs:
             .lto-cache
           key: ${{ steps.ccache.outputs.cache-primary-key }}
       - name: Keep the sizes for the release notes
-        run: sed -n '/^sizes/,$p' build-summary.txt > "dist/sizes-${{ matrix.os }}-${{ matrix.arch }}.txt"
+        run: sed -n '/^sizes/,$p;/^LLVM-C.dll/,$p' build-summary.txt > "dist/sizes-${{ matrix.os }}-${{ matrix.arch }}.txt"
       - uses: actions/upload-artifact@v7
         with:
           name: bundle-${{ matrix.os }}-${{ matrix.arch }}
@@ -134,7 +140,7 @@ jobs:
           case "$TAG" in "llvm-$version-r"*) ;; *) echo "tag $TAG does not match llvm-version $version" >&2; exit 1 ;; esac
           cd assets
           cat -- *.sha256 | sort -k2 > SHA256SUMS
-          { echo "Static lld, opt, llc and llvm-split for LLVM $version (see build.sh)."; echo; echo '```'; cat sizes-*.txt; echo '```'; } > ../notes.md
+          { echo "Static lld, opt, llc and llvm-split, and the shared LLVM library (llvm-lib-*), for LLVM $version (see build.sh, build-lib.sh)."; echo; echo '```'; cat sizes-*.txt; echo '```'; } > ../notes.md
           rm -- sizes-*.txt
           cd ..
           if gh release view "$TAG" >/dev/null 2>&1; then
