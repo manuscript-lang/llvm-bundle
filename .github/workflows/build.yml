@@ -15,7 +15,7 @@ on:
       - llvm-version
       - .github/workflows/build.yml
   push:
-    # Builds on main keep the compiler cache warm: a tag run can only read caches made on the default branch.
+    # Builds on main keep the compiler cache warm: a tag run can read caches made on main or on its own tag.
     branches: [main]
     paths:
       - build.sh
@@ -138,7 +138,7 @@ jobs:
         # A build that fails late (a link) still compiled most of LLVM, so its objects are worth keeping; one that
         # fails before compiling would save an empty cache that shadows a good older one, so save only when there is something.
         id: cache_size
-        if: ${{ always() && github.event_name != 'pull_request' && !startsWith(github.ref, 'refs/tags/') }}
+        if: ${{ always() && github.event_name != 'pull_request' }}
         run: |
           # ThinLTO code generation (the linker's cache) is most of the build, so it counts as much as the compiler cache.
           cc=$(du -sk .ccache 2>/dev/null | cut -f1)
@@ -147,8 +147,8 @@ jobs:
           echo "ccache: ${cc:-0} KB, ThinLTO: ${lto:-0} KB"
           if [ "${kb:-0}" -gt 51200 ]; then echo "worth=true" >> "$GITHUB_OUTPUT"; else echo "worth=false" >> "$GITHUB_OUTPUT"; fi
       - name: Save the compiler and ThinLTO caches
-        # Pull requests and tag builds only read: a cache saved there is invisible to other refs, and each save is
-        # large enough to push the main-branch cache out of the 10 GB repository limit.
+        # Pull requests only read: a cache saved there is invisible to other refs, and each save is large enough to push
+        # the main-branch cache out of the 10 GB repository limit. A tag's cache helps only a re-push of the same tag.
         if: ${{ always() && steps.cache_size.outputs.worth == 'true' }}
         uses: actions/cache/save@v4
         with:
