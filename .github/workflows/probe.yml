@@ -31,19 +31,27 @@ jobs:
         run: |
           export PATH="/c/Program Files/LLVM/bin:$PATH"
           export CCACHE_DIR="$RUNNER_TEMP/cc" CCACHE_LOGFILE="$RUNNER_TEMP/cc.log"
-          cd "$RUNNER_TEMP"; mkdir -p lib
-          echo 'int f(void){return 1;}' > p.c
-          t() { rm -f "$CCACHE_LOGFILE"; ccache clang-cl "$@" -c -- p.c >/dev/null 2>&1 || echo "(compile failed)"
-                echo "== $* => $(grep -o -i 'Result: [a-z_]*' "$CCACHE_LOGFILE" | head -n 1)"
-                grep -i -m 3 "unsupported" "$CCACHE_LOGFILE" | cut -c1-300 || true; }
+          cd "$RUNNER_TEMP"; rm -rf proj; mkdir proj; cd proj
+          printf 'cmake_minimum_required(VERSION 3.20)\nproject(p C)\nadd_library(l STATIC a.c b.c)\n' > CMakeLists.txt
+          printf '#include <stdio.h>\nint a(void){return 1;}\n' > a.c
+          printf '#include <stdio.h>\nint b(void){return 2;}\n' > b.c
           T=--target=x86_64-pc-windows-msvc; [ "${{ matrix.arch }}" = arm64 ] && T=--target=aarch64-pc-windows-msvc
-          t $T /O2 /Fo:lib/a.obj
-          t $T /Gw /Fo:lib/a.obj
-          t $T -flto=thin /Fo:lib/a.obj
-          t $T -MT /Fo:lib/a.obj
-          t $T -clang:-MD -clang:-MTlib/a.obj -clang:-MFlib/a.obj.d /Fo:lib/a.obj
-          t $T /Fdlib/a.pdb /Fo:lib/a.obj
-          t $T /Z7 /Fo:lib/a.obj
-          t $T /Gw -flto=thin /O2 /Ob2 /DNDEBUG -MT -clang:-MD -clang:-MTlib/a.obj -clang:-MFlib/a.obj.d /Folib/a.obj /Fdlib/a.pdb
-          t $T /O2 /Ob2 /DNDEBUG -MT /Folib/a.obj
-          echo "--- config"; ccache --show-config | grep -i "compiler_type\|sloppiness\|depend\|direct" || true
+          printf 'set(CMAKE_DEPFILE_FLAGS_C "")\nset(CMAKE_NINJA_DEPTYPE_C msvc)\n' > over.cmake
+          run() { name=$1; shift
+            for pass in 1 2; do
+              rm -rf "b-$name"; ccache -C >/dev/null; [ $pass = 2 ] && true
+              :
+            done
+            rm -rf "b-$name"; ccache -C >/dev/null; ccache -z >/dev/null
+            cmake -S . -B "b-$name" -G Ninja -DCMAKE_C_COMPILER=clang-cl -DCMAKE_C_COMPILER_LAUNCHER=ccache "-DCMAKE_C_FLAGS=$T" -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded "$@" >/dev/null 2>&1 || { echo "== $name: cmake failed"; return; }
+            cmake --build "b-$name" >/dev/null 2>&1 || echo "== $name: build failed"
+            rm -rf "b-$name"
+            cmake -S . -B "b-$name" -G Ninja -DCMAKE_C_COMPILER=clang-cl -DCMAKE_C_COMPILER_LAUNCHER=ccache "-DCMAKE_C_FLAGS=$T" -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded "$@" >/dev/null 2>&1
+            cmake --build "b-$name" >/dev/null 2>&1
+            echo "== $name"; ccache --show-stats | grep -i "hits\|misses\|uncacheable\|unsupported"
+            grep -c "Result: unsupported" "$CCACHE_LOGFILE" || true
+            grep -m1 -o "build.ninja" /dev/null; grep -m2 "deps = \|depfile" "b-$name/build.ninja" || true
+          }
+          run default
+          run override -DCMAKE_PROJECT_INCLUDE="$(cygpath -m "$PWD/over.cmake")"
+          ccache --version | head -n 1
