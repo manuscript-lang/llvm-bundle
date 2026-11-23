@@ -63,6 +63,7 @@ case "$os" in
         set -- "$@" "-DCMAKE_EXE_LINKER_FLAGS=/lldltocache:$lto_cache /lldltocachepolicy:cache_size_bytes=1g" \
             -DCMAKE_C_COMPILER=clang-cl -DCMAKE_CXX_COMPILER=clang-cl -DLLVM_USE_LINKER=lld-link \
             -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded -DLLVM_ENABLE_PCH=OFF \
+            "-DCMAKE_PROJECT_INCLUDE=$(cygpath -m "$repository/ccache-windows.cmake")" \
             "-DCMAKE_C_FLAGS=$win_target" "-DCMAKE_CXX_FLAGS=$win_target" ;;
     *)
         # Linux tools run on glibc 2.28 and later, so CI builds in the manylinux_2_28 container (AlmaLinux 8) and links
@@ -87,8 +88,11 @@ cmake "$@"
 cmake --build build --target lld opt llc llvm-link llvm-dis llvm-split llvm-extract llvm-reduce
 if command -v ccache >/dev/null 2>&1; then
     ccache --show-stats
-    # Why calls were uncacheable (the stats alone do not say).
-    [ -n "${CCACHE_LOGFILE:-}" ] && grep -h -o -E "Result: [a-z_]+|Failed to .*|unsupported [^\"]*" "$CCACHE_LOGFILE" | sort | uniq -c | sort -rn | head -10
+    # Why calls were uncacheable (the stats alone do not say): the first lines the log gives for a refusal.
+    if [ -n "${CCACHE_LOGFILE:-}" ]; then
+        ccache --version | head -n 1
+        grep -i -m 6 -B2 "unsupported" "$CCACHE_LOGFILE" | cut -c1-300 || true
+    fi
 fi
 
 exe=

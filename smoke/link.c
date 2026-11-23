@@ -9,7 +9,6 @@
 typedef void *Ref;
 unsigned LLVMGetVersion(unsigned *, unsigned *, unsigned *);
 Ref LLVMContextCreate(void);
-void LLVMContextDispose(Ref);
 Ref LLVMModuleCreateWithNameInContext(const char *, Ref);
 void LLVMDisposeModule(Ref);
 Ref LLVMInt32TypeInContext(Ref);
@@ -25,6 +24,7 @@ Ref LLVMBuildRet(Ref, Ref);
 int LLVMVerifyModule(Ref, int, char **);
 char *LLVMPrintModuleToString(Ref);
 void LLVMDisposeMessage(char *);
+void LLVMDisposeErrorMessage(char *);
 #if defined(__x86_64__) || defined(_M_X64)
 void LLVMInitializeX86TargetInfo(void);
 void LLVMInitializeX86Target(void);
@@ -38,8 +38,7 @@ void LLVMInitializeAArch64TargetMC(void);
 void LLVMInitializeAArch64AsmPrinter(void);
 #define INIT_TARGET() (LLVMInitializeAArch64TargetInfo(), LLVMInitializeAArch64Target(), LLVMInitializeAArch64TargetMC(), LLVMInitializeAArch64AsmPrinter())
 #endif
-Ref LLVMOrcCreateNewThreadSafeContext(void);
-Ref LLVMOrcThreadSafeContextGetContext(Ref);
+Ref LLVMOrcCreateNewThreadSafeContextFromLLVMContext(Ref);
 void LLVMOrcDisposeThreadSafeContext(Ref);
 Ref LLVMOrcCreateNewThreadSafeModule(Ref, Ref);
 Ref LLVMOrcCreateLLJIT(Ref *, Ref);
@@ -52,7 +51,7 @@ char *LLVMGetErrorMessage(Ref);
 static int fail(Ref error, const char *step) {
   char *message = LLVMGetErrorMessage(error);
   fprintf(stderr, "%s: %s\n", step, message);
-  LLVMDisposeMessage(message);
+  LLVMDisposeErrorMessage(message);
   return 1;
 }
 
@@ -61,8 +60,8 @@ int main(void) {
   LLVMGetVersion(&major, &minor, &patch);
   printf("LLVM %u.%u.%u\n", major, minor, patch);
   INIT_TARGET();
-  Ref safe_context = LLVMOrcCreateNewThreadSafeContext();
-  Ref context = LLVMOrcThreadSafeContextGetContext(safe_context);
+  Ref context = LLVMContextCreate();
+  Ref safe_context = LLVMOrcCreateNewThreadSafeContextFromLLVMContext(context); /* takes ownership of the context */
   Ref module = LLVMModuleCreateWithNameInContext("link_test", context);
   Ref i32 = LLVMInt32TypeInContext(context);
   Ref params[2] = {i32, i32};
