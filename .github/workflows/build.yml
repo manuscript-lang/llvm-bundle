@@ -102,6 +102,7 @@ jobs:
         run: |
           echo "CCACHE_DIR=$GITHUB_WORKSPACE/.ccache" >> "$GITHUB_ENV"
           echo "CCACHE_MAXSIZE=1500M" >> "$GITHUB_ENV"
+          echo "CCACHE_LOGFILE=$RUNNER_TEMP/ccache.log" >> "$GITHUB_ENV"
           echo "CCACHE_COMPRESS=true" >> "$GITHUB_ENV"
           echo "CCACHE_BASEDIR=$GITHUB_WORKSPACE" >> "$GITHUB_ENV"
           # clang-cl objects use precompiled headers unless the recipe turns them off; ccache must accept their defines and timestamps.

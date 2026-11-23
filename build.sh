@@ -85,7 +85,11 @@ fi
 cmake "$@"
 # LLVM_BUILD_TOOLS=OFF keeps the default target small; the ones we ship are built by name.
 cmake --build build --target lld opt llc llvm-link llvm-dis llvm-split llvm-extract llvm-reduce
-if command -v ccache >/dev/null 2>&1; then ccache --show-stats; fi
+if command -v ccache >/dev/null 2>&1; then
+    ccache --show-stats
+    # Why calls were uncacheable (the stats alone do not say).
+    [ -n "${CCACHE_LOGFILE:-}" ] && grep -h -o -E "Result: [a-z_]+|Failed to .*|unsupported [^\"]*" "$CCACHE_LOGFILE" | sort | uniq -c | sort -rn | head -10
+fi
 
 exe=
 [ "$os" = windows ] && exe=.exe
