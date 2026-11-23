@@ -1,8 +1,8 @@
 name: Build
 
 # Builds the pinned static lld, opt, llc and llvm-split, and the shared LLVM library (build-lib.sh), on a native runner of each of six platforms (see build.sh). Pushing a tag
-# `llvm-<version>-r<revision>` that matches llvm-version publishes the assets and a SHA256SUMS file to a release of the
-# same name; pull requests and manual runs only build, so a recipe change is proven before it is tagged.
+# `llvm-<version>-r<revision>` that matches llvm-version attaches the assets and a SHA256SUMS file to the release of the
+# same name, which must exist by then (it is created by hand); pull requests and manual runs only build, so a recipe change is proven before it is tagged.
 
 on:
   workflow_dispatch:
@@ -184,15 +184,10 @@ jobs:
         run: |
           version=$(tr -d '[:space:]' < llvm-version)
           case "$TAG" in "llvm-$version-r"*) ;; *) echo "tag $TAG does not match llvm-version $version" >&2; exit 1 ;; esac
+          # The release is created by hand (with its notes); this only attaches the files to it.
+          gh release view "$TAG" >/dev/null 2>&1 || { echo "create the release $TAG first; this job only attaches files" >&2; exit 1; }
           cd assets
           cat -- *.sha256 | sort -k2 > SHA256SUMS
-          { echo "Static lld, opt, llc and llvm-split, and the shared LLVM library (llvm-lib-*), for LLVM $version (see build.sh, build-lib.sh)."; echo; echo '```'; cat sizes-*.txt; echo '```'; } > ../notes.md
           rm -- sizes-*.txt
           cd ..
-          if gh release view "$TAG" >/dev/null 2>&1; then
-            # The release can already exist when it was drafted in the UI.
-            gh release edit "$TAG" --title "$TAG" --notes-file notes.md
-            gh release upload "$TAG" --clobber assets/*
-          else
-            gh release create "$TAG" --title "$TAG" --notes-file notes.md --verify-tag assets/*
-          fi
+          gh release upload "$TAG" --clobber assets/*
