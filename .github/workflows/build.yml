@@ -101,7 +101,7 @@ jobs:
       - name: Configure ccache
         run: |
           echo "CCACHE_DIR=$GITHUB_WORKSPACE/.ccache" >> "$GITHUB_ENV"
-          echo "CCACHE_MAXSIZE=500M" >> "$GITHUB_ENV"
+          echo "CCACHE_MAXSIZE=1500M" >> "$GITHUB_ENV"
           echo "CCACHE_COMPRESS=true" >> "$GITHUB_ENV"
           echo "CCACHE_BASEDIR=$GITHUB_WORKSPACE" >> "$GITHUB_ENV"
       - name: Build
@@ -109,11 +109,19 @@ jobs:
           sh build.sh "${{ matrix.os }}" "${{ matrix.arch }}" | tee build-summary.txt
           # The shared library reuses the source tree build.sh downloaded.
           sh build-lib.sh "${{ matrix.os }}" "${{ matrix.arch }}" | tee -a build-summary.txt
+      - name: Measure the caches
+        # A build that fails late (a smoke test, a link) still compiled most of LLVM, so its objects are worth keeping; one that
+        # fails before compiling would save an empty cache that shadows a good older one, so save only when there is something.
+        id: cache_size
+        if: ${{ always() && github.event_name != 'pull_request' && !startsWith(github.ref, 'refs/tags/') }}
+        run: |
+          kb=$(du -sk .ccache 2>/dev/null | cut -f1)
+          echo "ccache: ${kb:-0} KB"
+          if [ "${kb:-0}" -gt 51200 ]; then echo "worth=true" >> "$GITHUB_OUTPUT"; else echo "worth=false" >> "$GITHUB_OUTPUT"; fi
       - name: Save the compiler and ThinLTO caches
         # Pull requests and tag builds only read: a cache saved there is invisible to other refs, and each save is
-        # large enough to push the main-branch cache out of the 10 GB repository limit. A failed build saves nothing, since
-        # a newer, empty cache would be restored ahead of a good one; a cancelled one still saves what it compiled.
-        if: ${{ (success() || cancelled()) && github.event_name != 'pull_request' && !startsWith(github.ref, 'refs/tags/') }}
+        # large enough to push the main-branch cache out of the 10 GB repository limit.
+        if: ${{ always() && steps.cache_size.outputs.worth == 'true' }}
         uses: actions/cache/save@v4
         with:
           path: |
