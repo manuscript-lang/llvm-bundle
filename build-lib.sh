@@ -42,8 +42,12 @@ case "$os" in
             "-DCMAKE_OSX_ARCHITECTURES=$osx_arch"
         shared=LLVM ;;
     windows)
+        # clang-cl targets its own build's architecture; pin it to the platform's (the arm64 runner may carry an x64 clang).
+        win_target=--target=x86_64-pc-windows-msvc
+        [ "$arch" = arm64 ] && win_target=--target=aarch64-pc-windows-msvc
         set -- "$@" -DLLVM_BUILD_LLVM_C_DYLIB=ON -DCMAKE_C_COMPILER=clang-cl -DCMAKE_CXX_COMPILER=clang-cl \
-            -DLLVM_USE_LINKER=lld-link -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded
+            -DLLVM_USE_LINKER=lld-link -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded \
+            "-DCMAKE_C_FLAGS=$win_target" "-DCMAKE_CXX_FLAGS=$win_target"
         shared=LLVM-C ;;
     *)
         # As build.sh: build in the manylinux_2_28 container so the glibc floor is 2.28, libstdc++ and libgcc linked statically.
@@ -71,7 +75,8 @@ cp build-lib/include/llvm/Config/*.h build-lib/include/llvm/Config/*.def "$stage
 cp llvm/include/llvm/Config/*.def "$stage/include/llvm/Config/" 2>/dev/null || true
 case "$os" in
     windows) cp build-lib/bin/LLVM-C.dll "$stage/bin/" ; cp build-lib/lib/LLVM-C.lib "$stage/lib/" 2>/dev/null || true
-             library=$stage/bin/LLVM-C.dll ;;
+             # LoadLibrary needs a Windows path (D:/a/...), not the MSYS one (/d/a/...).
+             library=$(cygpath -m "$stage/bin/LLVM-C.dll") ;;
     darwin) cp "$(ls build-lib/lib/libLLVM*.dylib | head -n 1)" "$stage/lib/libLLVM.dylib"
             strip -x "$stage/lib/libLLVM.dylib"
             # The macOS floor is 12.0 (the deployment target above): fail if the library asks for anything newer.
