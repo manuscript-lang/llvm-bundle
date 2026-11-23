@@ -20,6 +20,8 @@ on:
     paths:
       - build.sh
       - build-lib.sh
+      - smoke/**
+      - check-glibc-floor.sh
       - llvm-version
       - .github/workflows/build.yml
     tags:
