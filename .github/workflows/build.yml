@@ -175,7 +175,7 @@ jobs:
       - uses: actions/checkout@v7
       - uses: actions/download-artifact@v8
         with:
-          run-id: ${{ needs.find.outputs.run_id }}
+          run-id: ${{ needs.find.outputs.run_id || github.run_id }}
           github-token: ${{ github.token }}
           path: assets
           merge-multiple: true
