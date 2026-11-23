@@ -74,6 +74,10 @@ case "$os" in
              library=$stage/bin/LLVM-C.dll ;;
     darwin) cp "$(ls build-lib/lib/libLLVM*.dylib | head -n 1)" "$stage/lib/libLLVM.dylib"
             strip -x "$stage/lib/libLLVM.dylib"
+            # The macOS floor is 12.0 (the deployment target above): fail if the library asks for anything newer.
+            minos=$(otool -l "$stage/lib/libLLVM.dylib" | awk '/LC_BUILD_VERSION/ { found = 1 } found && $1 == "minos" { print $2; exit }')
+            echo "macOS minos: $minos"
+            case "$minos" in 12.0 | 11.* | 10.*) ;; *) echo "libLLVM.dylib needs macOS $minos, above the 12.0 floor" >&2; exit 1 ;; esac
             library=$stage/lib/libLLVM.dylib ;;
     *) real=$(ls build-lib/lib/libLLVM.so.* build-lib/lib/libLLVM-*.so 2>/dev/null | head -n 1)
        cp -L "$real" "$stage/lib/libLLVM.so"
