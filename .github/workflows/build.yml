@@ -73,7 +73,13 @@ jobs:
             clang++ -std=c++17 --gcc-install-dir="$gcc_dir" -flto=thin -fuse-ld=lld -static-libstdc++ -static-libgcc "$RUNNER_TEMP/probe.cc" -o "$RUNNER_TEMP/probe"
             "$RUNNER_TEMP/probe"
           elif [ "$RUNNER_OS" = macOS ]; then brew install ninja
-          else choco install ninja -y; fi
+          else
+            choco install ninja -y
+            # The runner's MSVC STL (14.52) rejects a clang older than 22, and the image's clang-cl is older.
+            choco upgrade llvm -y
+            export PATH="/c/Program Files/LLVM/bin:$PATH"
+            clang-cl --version
+          fi
       - name: Install ccache
         run: |
           if [ "$RUNNER_OS" = Linux ]; then dnf install -y epel-release && dnf install -y ccache
