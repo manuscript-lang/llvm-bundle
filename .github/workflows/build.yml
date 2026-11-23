@@ -75,9 +75,11 @@ jobs:
           elif [ "$RUNNER_OS" = macOS ]; then brew install ninja
           else
             choco install ninja -y
-            # The runner's MSVC STL (14.52) rejects a clang older than 22, and the image's clang-cl is older.
-            choco upgrade llvm -y
+            # The runner's MSVC STL (14.52) rejects a clang older than 22. Upgrade only when the image's clang-cl is older: choco
+            # installs the x64 build, which on the arm64 runner targets x64 unless told otherwise (build scripts pass --target).
             export PATH="/c/Program Files/LLVM/bin:$PATH"
+            major=$(clang-cl --version | sed -n 's/^clang version \([0-9]*\)\..*/\1/p' | head -n 1)
+            if [ "${major:-0}" -lt 22 ]; then choco upgrade llvm -y; fi
             clang-cl --version
           fi
       - name: Install ccache

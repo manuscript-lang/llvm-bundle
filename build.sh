@@ -56,10 +56,14 @@ case "$os" in
         set -- "$@" -DCMAKE_OSX_DEPLOYMENT_TARGET=12.0 "-DCMAKE_OSX_ARCHITECTURES=$osx_arch" \
             "-DCMAKE_EXE_LINKER_FLAGS=-Wl,-cache_path_lto,$lto_cache" ;;
     windows)
+        # clang-cl targets its own build's architecture; pin it to the platform's (the arm64 runner may carry an x64 clang).
+        win_target=--target=x86_64-pc-windows-msvc
+        [ "$arch" = arm64 ] && win_target=--target=aarch64-pc-windows-msvc
         lto_cache=$(cygpath -m "$lto_cache")
         set -- "$@" "-DCMAKE_EXE_LINKER_FLAGS=/lldltocache:$lto_cache /lldltocachepolicy:cache_size_bytes=1g" \
             -DCMAKE_C_COMPILER=clang-cl -DCMAKE_CXX_COMPILER=clang-cl -DLLVM_USE_LINKER=lld-link \
-            -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded ;;
+            -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded \
+            "-DCMAKE_C_FLAGS=$win_target" "-DCMAKE_CXX_FLAGS=$win_target" ;;
     *)
         # Linux tools run on glibc 2.28 and later, so CI builds in the manylinux_2_28 container (AlmaLinux 8) and links
         # libstdc++ and libgcc statically. The container's own gcc 8 is too old for LLVM's C++, so clang is pointed at the
