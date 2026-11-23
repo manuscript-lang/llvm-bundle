@@ -104,6 +104,8 @@ jobs:
           echo "CCACHE_MAXSIZE=1500M" >> "$GITHUB_ENV"
           echo "CCACHE_COMPRESS=true" >> "$GITHUB_ENV"
           echo "CCACHE_BASEDIR=$GITHUB_WORKSPACE" >> "$GITHUB_ENV"
+          # clang-cl objects use precompiled headers unless the recipe turns them off; ccache must accept their defines and timestamps.
+          echo "CCACHE_SLOPPINESS=pch_defines,time_macros,include_file_mtime,include_file_ctime" >> "$GITHUB_ENV"
       - name: Build
         run: |
           sh build.sh "${{ matrix.os }}" "${{ matrix.arch }}" | tee build-summary.txt
@@ -115,8 +117,11 @@ jobs:
         id: cache_size
         if: ${{ always() && github.event_name != 'pull_request' && !startsWith(github.ref, 'refs/tags/') }}
         run: |
-          kb=$(du -sk .ccache 2>/dev/null | cut -f1)
-          echo "ccache: ${kb:-0} KB"
+          # ThinLTO code generation (the linker's cache) is most of the build, so it counts as much as the compiler cache.
+          cc=$(du -sk .ccache 2>/dev/null | cut -f1)
+          lto=$(du -sk .lto-cache 2>/dev/null | cut -f1)
+          kb=$(( ${cc:-0} + ${lto:-0} ))
+          echo "ccache: ${cc:-0} KB, ThinLTO: ${lto:-0} KB"
           if [ "${kb:-0}" -gt 51200 ]; then echo "worth=true" >> "$GITHUB_OUTPUT"; else echo "worth=false" >> "$GITHUB_OUTPUT"; fi
       - name: Save the compiler and ThinLTO caches
         # Pull requests and tag builds only read: a cache saved there is invisible to other refs, and each save is
