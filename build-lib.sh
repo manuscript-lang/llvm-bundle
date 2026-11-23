@@ -47,6 +47,7 @@ case "$os" in
         [ "$arch" = arm64 ] && win_target=--target=aarch64-pc-windows-msvc
         set -- "$@" -DLLVM_BUILD_LLVM_C_DYLIB=ON -DCMAKE_C_COMPILER=clang-cl -DCMAKE_CXX_COMPILER=clang-cl \
             -DLLVM_USE_LINKER=lld-link -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded -DLLVM_ENABLE_PCH=OFF \
+            "-DCMAKE_PROJECT_INCLUDE=$(cygpath -m "$repository/ccache-windows.cmake")" \
             "-DCMAKE_C_FLAGS=$win_target" "-DCMAKE_CXX_FLAGS=$win_target"
         shared=LLVM-C ;;
     *)

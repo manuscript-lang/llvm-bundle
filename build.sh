@@ -63,6 +63,7 @@ case "$os" in
         set -- "$@" "-DCMAKE_EXE_LINKER_FLAGS=/lldltocache:$lto_cache /lldltocachepolicy:cache_size_bytes=1g" \
             -DCMAKE_C_COMPILER=clang-cl -DCMAKE_CXX_COMPILER=clang-cl -DLLVM_USE_LINKER=lld-link \
             -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded -DLLVM_ENABLE_PCH=OFF \
+            "-DCMAKE_PROJECT_INCLUDE=$(cygpath -m "$repository/ccache-windows.cmake")" \
             "-DCMAKE_C_FLAGS=$win_target" "-DCMAKE_CXX_FLAGS=$win_target" ;;
     *)
         # Linux tools run on glibc 2.28 and later, so CI builds in the manylinux_2_28 container (AlmaLinux 8) and links

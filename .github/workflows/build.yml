@@ -10,6 +10,7 @@ on:
     paths:
       - build.sh
       - build-lib.sh
+      - ccache-windows.cmake
       - check-glibc-floor.sh
       - smoke/**
       - llvm-version
@@ -20,6 +21,7 @@ on:
     paths:
       - build.sh
       - build-lib.sh
+      - ccache-windows.cmake
       - check-glibc-floor.sh
       - smoke/**
       - llvm-version
