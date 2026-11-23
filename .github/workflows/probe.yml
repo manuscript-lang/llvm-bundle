@@ -50,7 +50,7 @@ jobs:
             cmake --build "b-$name" >/dev/null 2>&1
             echo "== $name"; ccache --show-stats | grep -i "hits\|misses\|uncacheable\|unsupported"
             grep -c "Result: unsupported" "$CCACHE_LOGFILE" || true
-            grep -m1 -o "build.ninja" /dev/null; grep -m2 "deps = \|depfile" "b-$name/build.ninja" || true
+            grep -m2 "deps = \|depfile" "b-$name/build.ninja" || true
           }
           run default
           run override -DCMAKE_PROJECT_INCLUDE="$(cygpath -m "$PWD/over.cmake")"
