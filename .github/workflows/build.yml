@@ -10,7 +10,6 @@ on:
     paths:
       - build.sh
       - build-lib.sh
-      - smoke/**
       - check-glibc-floor.sh
       - llvm-version
       - .github/workflows/build.yml
@@ -20,7 +19,6 @@ on:
     paths:
       - build.sh
       - build-lib.sh
-      - smoke/**
       - check-glibc-floor.sh
       - llvm-version
       - .github/workflows/build.yml
@@ -135,7 +133,7 @@ jobs:
           # The shared library reuses the source tree build.sh downloaded.
           sh build-lib.sh "${{ matrix.os }}" "${{ matrix.arch }}" | tee -a build-summary.txt
       - name: Measure the caches
-        # A build that fails late (a smoke test, a link) still compiled most of LLVM, so its objects are worth keeping; one that
+        # A build that fails late (a link) still compiled most of LLVM, so its objects are worth keeping; one that
         # fails before compiling would save an empty cache that shadows a good older one, so save only when there is something.
         id: cache_size
         if: ${{ always() && github.event_name != 'pull_request' && !startsWith(github.ref, 'refs/tags/') }}

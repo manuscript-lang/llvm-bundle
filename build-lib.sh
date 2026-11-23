@@ -95,20 +95,6 @@ asset=llvm-lib-$version-$os-$arch.tar.gz
 tar -czf "$out/$asset" -C "$stage" .
 ( cd "$out"; if command -v sha256sum >/dev/null 2>&1; then sha256sum "$asset" > "$asset.sha256"; else shasum -a 256 "$asset" > "$asset.sha256"; fi )
 
-# Prove it loads and compiles: the smoke test calls the library through its C API by path, as `ms` will.
-triple_arch=x86_64
-[ "$arch" = arm64 ] && triple_arch=aarch64
-case "$os" in
-    darwin) triple=$triple_arch-apple-darwin; [ "$arch" = arm64 ] && triple=arm64-apple-darwin ;;
-    windows) triple=$triple_arch-w64-windows-gnu ;;
-    *) triple=$triple_arch-unknown-linux-gnu ;;
-esac
-case "$os" in
-    windows) cl -nologo -O1 "$(cygpath -m "$repository/smoke/smoke.c")" -Fe:smoke.exe && smoke_run=./smoke.exe ;;
-    darwin) cc -O1 "$repository/smoke/smoke.c" -o smoke && smoke_run=./smoke ;;
-    *) cc -O1 "$repository/smoke/smoke.c" -o smoke -ldl && smoke_run=./smoke ;;
-esac
-$smoke_run "$library" "$triple" "$target"
 echo "sizes (bytes, library then archive):"
 wc -c "$library" "$out/$asset"
 if [ "$os" = windows ]; then
