@@ -99,7 +99,9 @@ tar -czf "$out/$asset" -C "$stage" .
 # function with the builder API and checks the verified IR.
 here=$(pwd)
 case "$os" in
-    windows) cl -nologo -O1 "$(cygpath -m "$repository/smoke/link.c")" "$(cygpath -m "$here/build-lib/lib/LLVM-C.lib")" -Fe:link-test.exe \
+    windows) implib=$(ls "$here"/build-lib/lib/LLVM-C*.lib | head -n 1)
+             echo "import library: $implib"
+             cl -nologo -O1 "$(cygpath -m "$repository/smoke/link.c")" "$(cygpath -m "$implib")" -Fe:link-test.exe \
                  && PATH="$here/build-lib/bin:$PATH" ./link-test.exe ;;
     *) cc -O1 "$repository/smoke/link.c" -o link-test -L"$here/build-lib/lib" -lLLVM -Wl,-rpath,"$here/build-lib/lib" && ./link-test ;;
 esac
