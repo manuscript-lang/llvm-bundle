@@ -75,7 +75,8 @@ cp build-lib/include/llvm/Config/*.h build-lib/include/llvm/Config/*.def "$stage
 cp llvm/include/llvm/Config/*.def "$stage/include/llvm/Config/" 2>/dev/null || true
 case "$os" in
     windows) cp build-lib/bin/LLVM-C.dll "$stage/bin/" ; cp build-lib/lib/LLVM-C.lib "$stage/lib/" 2>/dev/null || true
-             library=$stage/bin/LLVM-C.dll ;;
+             # LoadLibrary needs a Windows path (D:/a/...), not the MSYS one (/d/a/...).
+             library=$(cygpath -m "$stage/bin/LLVM-C.dll") ;;
     darwin) cp "$(ls build-lib/lib/libLLVM*.dylib | head -n 1)" "$stage/lib/libLLVM.dylib"
             strip -x "$stage/lib/libLLVM.dylib"
             # The macOS floor is 12.0 (the deployment target above): fail if the library asks for anything newer.

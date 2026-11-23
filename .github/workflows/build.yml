@@ -121,7 +121,7 @@ jobs:
             .lto-cache
           key: ${{ steps.ccache.outputs.cache-primary-key }}
       - name: Keep the sizes for the release notes
-        run: sed -n '/^sizes/,$p;/^LLVM-C.dll/,$p' build-summary.txt > "dist/sizes-${{ matrix.os }}-${{ matrix.arch }}.txt"
+        run: sed -n '/^sizes/,$p' build-summary.txt > "dist/sizes-${{ matrix.os }}-${{ matrix.arch }}.txt"
       - uses: actions/upload-artifact@v7
         with:
           name: bundle-${{ matrix.os }}-${{ matrix.arch }}
