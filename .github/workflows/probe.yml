@@ -1,0 +1,49 @@
+name: ccache probe
+# Throwaway: finds which clang-cl option ccache refuses on Windows. Not to be merged.
+on:
+  pull_request:
+    paths: [.github/workflows/probe.yml]
+jobs:
+  probe:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { runner: windows-2025, arch: amd64 }
+          - { runner: windows-11-arm, arch: arm64 }
+    runs-on: ${{ matrix.runner }}
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: ${{ matrix.arch == 'arm64' && 'amd64_arm64' || 'amd64' }}
+      - name: Tools
+        run: |
+          choco install ccache -y
+          export PATH="/c/Program Files/LLVM/bin:$PATH"
+          major=$(clang-cl --version | sed -n 's/^clang version \([0-9]*\)\..*/\1/p' | head -n 1)
+          if [ "${major:-0}" -lt 22 ]; then choco upgrade llvm -y; fi
+          clang-cl --version
+          ccache --version
+      - name: Probe
+        run: |
+          export PATH="/c/Program Files/LLVM/bin:$PATH"
+          export CCACHE_DIR="$RUNNER_TEMP/cc" CCACHE_LOGFILE="$RUNNER_TEMP/cc.log"
+          cd "$RUNNER_TEMP"; mkdir -p lib
+          echo 'int f(void){return 1;}' > p.c
+          t() { rm -f "$CCACHE_LOGFILE"; ccache clang-cl "$@" -c -- p.c >/dev/null 2>&1 || echo "(compile failed)"
+                echo "== $* => $(grep -o -i 'Result: [a-z_]*' "$CCACHE_LOGFILE" | head -n 1)"
+                grep -i -m 3 "unsupported" "$CCACHE_LOGFILE" | cut -c1-300 || true; }
+          T=--target=x86_64-pc-windows-msvc; [ "${{ matrix.arch }}" = arm64 ] && T=--target=aarch64-pc-windows-msvc
+          t $T /O2 /Fo:lib/a.obj
+          t $T /Gw /Fo:lib/a.obj
+          t $T -flto=thin /Fo:lib/a.obj
+          t $T -MT /Fo:lib/a.obj
+          t $T -clang:-MD -clang:-MTlib/a.obj -clang:-MFlib/a.obj.d /Fo:lib/a.obj
+          t $T /Fdlib/a.pdb /Fo:lib/a.obj
+          t $T /Z7 /Fo:lib/a.obj
+          t $T /Gw -flto=thin /O2 /Ob2 /DNDEBUG -MT -clang:-MD -clang:-MTlib/a.obj -clang:-MFlib/a.obj.d /Folib/a.obj /Fdlib/a.pdb
+          t $T /O2 /Ob2 /DNDEBUG -MT /Folib/a.obj
+          echo "--- config"; ccache --show-config | grep -i "compiler_type\|sloppiness\|depend\|direct" || true
