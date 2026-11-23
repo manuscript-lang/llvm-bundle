@@ -103,13 +103,18 @@ int main(int argc, char **argv) {
   }
   const char *bytes = buffer_start(object);
   size_t size = buffer_size(object);
-  int has_lines = 0;
+  /* DWARF names its sections "debug_line" (COFF keeps the long name in its string table); a Windows object may carry
+   * CodeView (".debug$S") as well or instead, which depends on the module flags and triple, not on the library. */
+  int has_dwarf = 0, has_any = 0;
   for (size_t at = 0; at + 12 < size; at++) {
     if (!memcmp(bytes + at, "debug_line", 10)) {
-      has_lines = 1;
-      break;
+      has_dwarf = 1;
+    }
+    if (!memcmp(bytes + at, ".debug", 6)) {
+      has_any = 1;
     }
   }
-  printf("object %zu bytes, line tables %s\n", size, has_lines ? "present" : "ABSENT");
-  return size > 0 && has_lines ? 0 : 1;
+  printf("object %zu bytes, DWARF line tables %s, any debug section %s\n", size, has_dwarf ? "present" : "absent",
+         has_any ? "present" : "absent");
+  return size > 0 && has_any ? 0 : 1;
 }
