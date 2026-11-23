@@ -6,7 +6,7 @@ Nothing here is patched: `build.sh` downloads the pinned upstream LLVM source ar
 
 ## Releases
 
-A tag `llvm-<version>-r<revision>` publishes, per platform `<os>-<arch>` (`linux`, `darwin`, `windows` × `amd64`, `arm64`):
+Create the release `llvm-<version>-r<revision>` for a tag by hand; the build attaches, per platform `<os>-<arch>` (`linux`, `darwin`, `windows` × `amd64`, `arm64`):
 
 | Asset | Contents |
 | --- | --- |
@@ -15,7 +15,7 @@ A tag `llvm-<version>-r<revision>` publishes, per platform `<os>-<arch>` (`linux
 | `llvm-lib-<version>-<os>-<arch>.tar.gz` | one shared LLVM library for in-process use, loaded by absolute path: `lib/libLLVM.so` (Linux), `lib/libLLVM.dylib` (macOS) or `bin/LLVM-C.dll` (Windows, C API only), plus `include/llvm-c` and `include/llvm/Config` headers. Built by `build-lib.sh`; `smoke/link.c` links it, JIT-compiles a function with it and runs it in CI |
 | `SHA256SUMS` | the checksum of every asset |
 
-Consumers download a release asset and verify it against a checksum **pinned in their own repository**, never one fetched from the same release. The release notes list the binary and archive sizes.
+Consumers download a release asset and verify it against a checksum **pinned in their own repository**, never one fetched from the same release.
 
 The revision is bumped when the recipe changes without a version change. Linux binaries are built on Ubuntu 24.04, so they need its glibc or newer.
 
