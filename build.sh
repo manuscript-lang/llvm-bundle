@@ -87,8 +87,11 @@ cmake "$@"
 cmake --build build --target lld opt llc llvm-link llvm-dis llvm-split llvm-extract llvm-reduce
 if command -v ccache >/dev/null 2>&1; then
     ccache --show-stats
-    # Why calls were uncacheable (the stats alone do not say).
-    [ -n "${CCACHE_LOGFILE:-}" ] && grep -h -o -E "Result: [a-z_]+|Failed to .*|unsupported [^\"]*" "$CCACHE_LOGFILE" | sort | uniq -c | sort -rn | head -10
+    # Why calls were uncacheable (the stats alone do not say): the first lines the log gives for a refusal.
+    if [ -n "${CCACHE_LOGFILE:-}" ]; then
+        ccache --version | head -n 1
+        grep -i -m 6 -B2 "unsupported" "$CCACHE_LOGFILE" | cut -c1-300 || true
+    fi
 fi
 
 exe=

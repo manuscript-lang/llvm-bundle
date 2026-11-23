@@ -98,13 +98,16 @@ tar -czf "$out/$asset" -C "$stage" .
 # Prove the build links and works: a small C program linked against the library (as built, before stripping) makes a
 # function with the builder API and checks the verified IR.
 here=$(pwd)
-case "$os" in
-    windows) implib=$(ls "$here"/build-lib/lib/LLVM-C*.lib | head -n 1)
-             echo "import library: $implib"
-             cl -nologo -O1 "$(cygpath -m "$repository/smoke/link.c")" "$(cygpath -m "$implib")" -Fe:link-test.exe \
-                 && PATH="$here/build-lib/bin:$PATH" ./link-test.exe ;;
-    *) cc -O1 "$repository/smoke/link.c" -o link-test -L"$here/build-lib/lib" -lLLVM -Wl,-rpath,"$here/build-lib/lib" && ./link-test ;;
-esac
+# Plain commands, so a failure ends the script: `a && b` in a case arm would not (set -e ignores all but the last of a list).
+if [ "$os" = windows ]; then
+    implib=$(ls "$here"/build-lib/lib/LLVM-C*.lib | head -n 1)
+    echo "import library: $implib"
+    cl -nologo -O1 "$(cygpath -m "$repository/smoke/link.c")" "$(cygpath -m "$implib")" -Fe:link-test.exe
+    PATH="$here/build-lib/bin:$PATH" ./link-test.exe
+else
+    cc -O1 "$repository/smoke/link.c" -o link-test -L"$here/build-lib/lib" -lLLVM -Wl,-rpath,"$here/build-lib/lib"
+    ./link-test
+fi
 echo "sizes (bytes, library then archive):"
 wc -c "$library" "$out/$asset"
 if [ "$os" = windows ]; then
