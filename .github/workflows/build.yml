@@ -1,6 +1,6 @@
 name: Build
 
-# Builds the pinned static lld, opt, llc and llvm-split, and the shared LLVM library (build-lib.sh), on a native runner of each of six platforms (see build.sh). Pushing a tag
+# Builds the pinned static lld and the shared LLVM library (build-lib.sh), on a native runner of each of six platforms (see build.sh). Pushing a tag
 # `llvm-<version>-r<revision>` that matches llvm-version attaches the assets and a SHA256SUMS file to the release of the
 # same name, which must exist by then (it is created by hand); pull requests and manual runs only build, so a recipe change is proven before it is tagged.
 

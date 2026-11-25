@@ -1,6 +1,6 @@
 # llvm-bundle
 
-Static [lld](https://lld.llvm.org), `opt`, `llc` and `llvm-split` builds for [Manuscript](https://github.com/manuscript-lang/manuscript), one per platform (Linux, macOS and Windows on amd64 and arm64). Manuscript's `ms` embeds the `lld` it links programs with, so no C toolchain or SDK is needed; `opt` and `llc` are for LLVM-optimized release builds.
+Static [lld](https://lld.llvm.org) builds and a shared LLVM library for [Manuscript](https://github.com/manuscript-lang/manuscript), one per platform (Linux, macOS and Windows on amd64 and arm64). Manuscript's `ms` embeds the `lld` it links programs with, so no C toolchain or SDK is needed; it optimizes and generates code in-process through the shared library, so `opt` and `llc` are not shipped.
 
 Nothing here is patched: `build.sh` downloads the pinned upstream LLVM source archive (`llvm-version`), builds it statically (no shared libLLVM, no zlib or zstd) with only the backend for the platform's own architecture (X86 on amd64, AArch64 on arm64) and packs the stripped binaries.
 
@@ -11,7 +11,6 @@ Create the release `llvm-<version>-r<revision>` for a tag by hand; the build att
 | Asset | Contents |
 | --- | --- |
 | `lld-<version>-<os>-<arch>.tar.gz` | `bin/lld` (use `-flavor gnu`, `darwin` or `link`) |
-| `llvm-tools-<version>-<os>-<arch>.tar.gz` | `bin/opt`, `bin/llc`, `bin/llvm-link`, `bin/llvm-dis`, `bin/llvm-split`, `bin/llvm-extract`, `bin/llvm-reduce` |
 | `llvm-lib-<version>-<os>-<arch>.tar.gz` | one shared LLVM library for in-process use, loaded by absolute path: `lib/libLLVM.so` (Linux), `lib/libLLVM.dylib` (macOS) or `bin/LLVM-C.dll` (Windows, C API only), plus `include/llvm-c` and `include/llvm/Config` headers. Built by `build-lib.sh`; `smoke/link.c` links it, JIT-compiles a function with it and runs it in CI |
 | `SHA256SUMS` | the checksum of every asset |
 

@@ -1,8 +1,7 @@
 #!/bin/sh
-# Builds the pinned static lld, opt, llc and llvm-split for the host: `sh build.sh <os> <arch>`.
-# Writes to dist/, each with a .sha256 beside it:
+# Builds the pinned static lld for the host: `sh build.sh <os> <arch>`.
+# Writes to dist/, with a .sha256 beside it:
 #   lld-<version>-<os>-<arch>.tar.gz         bin/lld            the linker `ms` embeds (all of ELF, Mach-O, COFF)
-#   llvm-tools-<version>-<os>-<arch>.tar.gz  bin/opt, bin/llc, bin/llvm-link, bin/llvm-dis, bin/llvm-split, bin/llvm-extract, bin/llvm-reduce   the optimizer, code generator, bitcode linker, disassembler, module splitter, function extractor and IR reducer
 # The version is the single pin in llvm-version. Everything is linked statically (no libLLVM shared library) and built
 # once in CI, then consumed by checksum.
 # Set LLVM_WORK to keep the source and build trees somewhere else (default: ./work).
@@ -85,7 +84,7 @@ if command -v ccache >/dev/null 2>&1; then
 fi
 cmake "$@"
 # LLVM_BUILD_TOOLS=OFF keeps the default target small; the ones we ship are built by name.
-cmake --build build --target lld opt llc llvm-link llvm-dis llvm-split llvm-extract llvm-reduce
+cmake --build build --target lld
 if command -v ccache >/dev/null 2>&1; then
     ccache --show-stats
     # Why calls were uncacheable (the stats alone do not say): the first lines the log gives for a refusal.
@@ -99,27 +98,23 @@ exe=
 [ "$os" = windows ] && exe=.exe
 stage=$work/stage
 rm -rf "$stage"
-mkdir -p "$stage/lld/bin" "$stage/tools/bin"
+mkdir -p "$stage/lld/bin"
 cp "build/bin/lld$exe" "$stage/lld/bin/"
-cp "build/bin/opt$exe" "build/bin/llc$exe" "build/bin/llvm-link$exe" "build/bin/llvm-dis$exe" "build/bin/llvm-split$exe" \
-   "build/bin/llvm-extract$exe" "build/bin/llvm-reduce$exe" "$stage/tools/bin/"
 case "$os" in
     windows) ;;
-    darwin) strip -x "$stage"/lld/bin/* "$stage"/tools/bin/* ;;
-    *) strip --strip-unneeded "$stage"/lld/bin/* "$stage"/tools/bin/*
+    darwin) strip -x "$stage"/lld/bin/* ;;
+    *) strip --strip-unneeded "$stage"/lld/bin/*
         # Fail the build if a binary needs a glibc newer than 2.28 or a library glibc does not provide.
-        sh "$repository/check-glibc-floor.sh" "$stage"/lld/bin/* "$stage"/tools/bin/* ;;
+        sh "$repository/check-glibc-floor.sh" "$stage"/lld/bin/* ;;
 esac
 
 lld_asset=lld-$version-$os-$arch.tar.gz
-tools_asset=llvm-tools-$version-$os-$arch.tar.gz
 tar -czf "$out/$lld_asset" -C "$stage/lld" "bin"
-tar -czf "$out/$tools_asset" -C "$stage/tools" "bin"
 (
     cd "$out"
-    for f in "$lld_asset" "$tools_asset"; do
+    for f in "$lld_asset"; do
         if command -v sha256sum >/dev/null 2>&1; then sha256sum "$f" > "$f.sha256"; else shasum -a 256 "$f" > "$f.sha256"; fi
     done
 )
 echo "sizes (bytes, stripped binaries then archives):"
-wc -c "$stage"/lld/bin/* "$stage"/tools/bin/* "$out/$lld_asset" "$out/$tools_asset"
+wc -c "$stage"/lld/bin/* "$out/$lld_asset"
